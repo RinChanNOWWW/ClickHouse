@@ -2,6 +2,7 @@ import glob
 import json
 import os
 import re
+import shlex
 import sys
 import traceback
 from pathlib import Path
@@ -275,7 +276,25 @@ class Runner:
                 "docker ps -a --format '{{.Names}}' | grep -q praktika && docker rm -f praktika",
                 verbose=True,
             )
-            cmd = f"docker run --rm --name praktika {'--user $(id -u):$(id -g)' if not from_root else ''} -e PYTHONPATH='.:./ci' --volume ./:{current_dir} --workdir={current_dir} {' '.join(settings)} {docker} {job.command}"
+            
+            host_dir = os.environ.get("PRAKTIKA_HOST_WORKDIR", "./")
+            host_dir_q = shlex.quote(host_dir)
+            if host_dir != "./":
+                rewritten_settings = []
+                for s in settings:
+                    if s.startswith("--volume="):
+                        vol_arg = s.removeprefix("--volume=")
+                        src, sep, rest = vol_arg.partition(":")
+                        if src == ".":
+                            src = host_dir.rstrip("/")
+                        elif src.startswith("./"):
+                            src = host_dir.rstrip("/") + src[1:]
+                        s = f"--volume={src}{sep}{rest}"
+                    rewritten_settings.append(s)
+                settings = rewritten_settings
+            
+            
+            cmd = f"docker run --rm --name praktika {'--user $(id -u):$(id -g)' if not from_root else ''} -e PYTHONPATH='.:./ci' --volume {host_dir_q}:{current_dir} --workdir={current_dir} {' '.join(settings)} {docker} {job.command}"
         else:
             cmd = job.command
             python_path = os.getenv("PYTHONPATH", ":")
