@@ -141,6 +141,12 @@ def main():
         if not clickhouse_server_link.is_file():
             Shell.check(f"ln -sf {clickhouse_bin_path} {clickhouse_server_link}")
         Shell.check(f"chmod +x {clickhouse_bin_path}")
+        if os.environ.get("SCCACHE_ENDPOINT"):
+            print(f"NOTE: Using custom sccache endpoint: {os.environ['SCCACHE_ENDPOINT']}")
+        if os.environ.get("AWS_ACCESS_KEY_ID"):
+            print("NOTE: Using custom AWS credentials for sccache")
+        else:
+            os.environ["SCCACHE_S3_NO_CREDENTIALS"] = "true"
     else:
         os.environ["SCCACHE_IDLE_TIMEOUT"] = "7200"
         os.environ["SCCACHE_BUCKET"] = Settings.S3_ARTIFACT_PATH

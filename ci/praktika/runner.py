@@ -293,8 +293,9 @@ class Runner:
                     rewritten_settings.append(s)
                 settings = rewritten_settings
             
+            local_env_flag = f"--env-file {self.LOCAL_ENV_FILE}" if Path(self.LOCAL_ENV_FILE).exists() else ""
             
-            cmd = f"docker run --rm --name praktika {'--user $(id -u):$(id -g)' if not from_root else ''} -e PYTHONPATH='.:./ci' --volume {host_dir_q}:{current_dir} --workdir={current_dir} {' '.join(settings)} {docker} {job.command}"
+            cmd = f"docker run --rm --name praktika {'--user $(id -u):$(id -g)' if not from_root else ''} -e PYTHONPATH='.:./ci' {local_env_flag} --volume {host_dir_q}:{current_dir} --workdir={current_dir} {' '.join(settings)} {docker} {job.command}"
         else:
             cmd = job.command
             python_path = os.getenv("PYTHONPATH", ":")
@@ -598,6 +599,23 @@ class Runner:
 
         return is_ok
 
+    LOCAL_ENV_FILE = "ci/local.env"
+
+    @classmethod
+    def _load_local_env(cls):
+        """Load environment variables from a gitignored local env file (KEY=VALUE format)."""
+        try:
+            with open(cls.LOCAL_ENV_FILE) as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or line.startswith("#"):
+                        continue
+                    if "=" in line:
+                        key, _, value = line.partition("=")
+                        os.environ[key.strip()] = value.strip()
+        except FileNotFoundError:
+            pass
+
     def run(
         self,
         workflow,
@@ -611,6 +629,8 @@ class Runner:
         sha=None,
         branch=None,
     ):
+        self._load_local_env()
+
         res = True
         setup_env_code = -10
         prerun_code = -10

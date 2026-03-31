@@ -123,6 +123,13 @@ def main():
         os.environ["CTCACHE_DIR"] = f"{build_dir}/ccache/clang-tidy-cache"
         os.environ["CTCACHE_S3_BUCKET"] = Settings.S3_ARTIFACT_PATH
         os.environ["CTCACHE_S3_FOLDER"] = "ccache/clang-tidy-cache"
+    else:
+        if os.environ.get("SCCACHE_ENDPOINT"):
+            print(f"NOTE: Using custom sccache endpoint: {os.environ['SCCACHE_ENDPOINT']}")
+        if os.environ.get("AWS_ACCESS_KEY_ID"):
+            print("NOTE: Using custom AWS credentials for sccache")
+        else:
+            os.environ["SCCACHE_S3_NO_CREDENTIALS"] = "true"
     if info.pr_number == 0:
         cmake_cmd += " -DCLICKHOUSE_OFFICIAL_BUILD=1"
     cmake_cmd += f" {current_directory}"
